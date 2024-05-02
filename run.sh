@@ -1,1 +1,1 @@
-nextflow kuberun xsvato01/mareckova_CXCR_k8s -r main -head-image 'cerit.io/nextflow/nextflow:22.11.1' -resume -with-report -params-file samplesheet.json -c nextflow.config
+nextflow kuberun xsvato01/CMBG_Germinal -r main -head-image 'cerit.io/nextflow/nextflow:22.11.1' -resume -with-report -params-file samplesheet.json -c nextflow.config
