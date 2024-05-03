@@ -300,11 +300,6 @@ process DB_IMPORT {
 	tuple val(panelName), val(intervalName), path("${panelName}-${intervalBed.getSimpleName()}.db")
 
     script:
-
-    //   for i in `ls ${params.pubdir}/results/HC/*gz | xargs -n1 basename`
-    //   do
-    //     awk -v id="\${i%.g.vcf.gz}" -v vcf="\$i" -v dir="${params.pubdir}" 'BEGIN{print id, dir "results/HC/" vcf}' | sed 's/ /\t/g' >> samples.names
-    //   done
 	input = vcfsSamples.collect{"-V ${it}"}.join(' ')
 	"""
     gatk --java-options "-Xmx${task.memory.toMega()}m -XX:ParallelGCThreads=${task.cpus}" \
@@ -327,7 +322,9 @@ process GENOTYPE_GVCFs_INTERVALS {
 	tuple val(panelName), val(intervalName), path(db)
 
     output:
-	tuple val(panelName), path("${panelName}_${intervalName}.vcf.gz")
+	// tuple val(panelName), path("${panelName}_${intervalName}.vcf.gz")
+	tuple val(panelName), val(intervalName), path("${panelName}_${intervalName}.vcf.gz")
+
 
     script:
 	"""
@@ -339,15 +336,40 @@ process GENOTYPE_GVCFs_INTERVALS {
 	"""
 }
 
-process GATHER_VCFs_INTERVALS {
-	tag "GATHER_VCFs_INTERVALS on $panelName using $task.cpus CPUs and $task.memory memory"
+process ANNOTATE_VEP {
+	tag "ANNOTATE_VEP on $panelName: $intervalName using $task.cpus CPUs $task.memory"
+	container "ensemblorg/ensembl-vep:release_108.0"
+	publishDir "${params.outDirectory}/Annotate/", mode:'copy'
+	label "s_cpu"
+	label "l_mem"
+
+	input:
+	tuple val(panelName), val(intervalName), path(vcfRegion)
+	//, path(panelVcfTbi)
+	
+	output:
+	tuple val(panelName), val(intervalName), path("${panelName}_${intervalName}.vep.vcf")
+	//, path("${panelName}.vep.vcf.gz.tbi")
+
+	script:
+	"""
+	vep -i $vcfRegion --cache --cache_version 108 --format vcf --dir_cache $params.vep \
+	--fasta ${params.ref}.fasta --merged --mane_select --offline --vcf --everything -o ${panelName}_${intervalName}.vep.vcf
+	"""	
+
+	// bgzip -c ${panelName}.vep.vcf > ${panelName}.vep.vcf.gz
+	// tabix -p vcf ${panelName}.vep.vcf.gz
+}
+
+process GATHER_VCF_PANELS {
+	tag "GATHER_VCF_PANELS on $panelName using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/mergedVCFs/", mode:'copy'
     container 'broadinstitute/gatk:4.2.3.0'
 	label "s_cpu"
 	label "m_mem"
 	
 	input:
-	tuple val(panelName), path(vcfsPanelIntervals)
+	tuple val(panelName), val(intervalNames), path(vcfsPanelIntervals)
 
     output:
 	tuple val(panelName), path("${panelName}.vcf.gz"), path("${panelName}.vcf.gz.tbi")
@@ -367,6 +389,7 @@ process GATHER_VCFs_INTERVALS {
 	"""
 }
 
+
 process VCFs_PER_SAMPLE {
 	tag "VCFs_PER_SAMPLE on $sample.name using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/VCFsPerSample/", mode:'copy'
@@ -382,12 +405,39 @@ process VCFs_PER_SAMPLE {
 
     script:
 	"""
-	gatk --java-options "-Xmx${task.memory.toMega()}m" \
+	gatk --java-options -Xmx${task.memory.toMega()}m \
 		SelectVariants \
 		-R ${params.ref}.fasta \
 		-V ${mergedVcf} \
 		-sn $sample.name \
 		-O ${sample.name}.vcf.gz
+	"""
+}
+
+process BEAGLE_IMPUTATION {
+	tag "BEAGLE_IMPUTATION on $panelName:$intervalName using $task.cpus CPUs and $task.memory memory"
+	publishDir "${params.outDirectory}/phased/", mode:'copy'
+    container 'quay.io/biocontainers/beagle:5.4_22Jul22.46e--hdfd78af_0'
+	label "s_cpu"
+	label "m_mem"
+	
+	input:
+	tuple val(panelName), val(intervalName), path(vcfInterval)
+
+    output:
+	tuple val(panelName), path("*")
+
+    script:
+	splited = intervalName.split("_")
+	chrom = splited[0]
+	"""
+	echo $chrom
+	beagle \
+		gt=$vcfInterval \
+		out=${panelName}_${intervalName}_phased
+		map=${params.plinkMap}/plink.${chrom}.GRCh38.map \
+		chrom=$chrom:${splited[1]}-${splited[2]} \
+		nthreads=$task.cpus
 	"""
 }
 
@@ -632,14 +682,17 @@ PerPanelRegionBedVcfs = NamedIntervals
 	.map({[it[0], it[1].getSimpleName(), it[1]]})
 	.join(PerPanelRegionVcfs, by: [0,1]) //match panel name and interval name with interval.list
 DBsPanelRegion = DB_IMPORT(PerPanelRegionBedVcfs)
-GenotypedPanelRegion = GENOTYPE_GVCFs_INTERVALS(DBsPanelRegion)
-GenotypedPerPanel = GATHER_VCFs_INTERVALS(GenotypedPanelRegion.groupTuple())
 
+GenotypedPanelRegion = GENOTYPE_GVCFs_INTERVALS(DBsPanelRegion)
+IntervalVCFsAnnotated = ANNOTATE_VEP(GenotypedPanelRegion)
+
+GenotypedPerPanel = GATHER_VCF_PANELS(IntervalVCFsAnnotated.groupTuple())
+
+	// BEAGLE_IMPUTATION(GenotypedPanelRegion.first())
 SamplesMergedVCF = SamplesWithPanels //get [sample, panel.vcf.gz, panel.vcf.gz.tbi]
 	.map{[it.panel,it]}
 	.combine(GenotypedPerPanel)
-	.map{[it[1], it[3], it[4]]}
-
+	.map{[it[1], it[3], it[4]]}.view()
 GenotypedPerSample = VCFs_PER_SAMPLE(SamplesMergedVCF)
 
 }
