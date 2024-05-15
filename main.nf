@@ -113,7 +113,7 @@ process FIRST_QC {
 process MARK_DUPLICATES {
 	tag "Mark duplicates on $sample.name using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/markDups/", mode:'copy'
-    container 'broadinstitute/gatk:4.2.3.0'
+	container 'broadinstitute/gatk:4.2.3.0'
 	label "s_cpu"
 	label "l_mem"
 
@@ -126,20 +126,20 @@ process MARK_DUPLICATES {
 
 	script:
 	"""
-    gatk --java-options -Xmx${task.memory.toGiga()}g \
-        MarkDuplicates \
-        --INPUT $bam \
-        --METRICS_FILE ${sample.name}.bam.metrics \
-        --ASSUME_SORT_ORDER coordinate \
-        --CREATE_INDEX true \
-        --OUTPUT ${sample.name}.md.bam
+	gatk --java-options -Xmx${task.memory.toGiga()}g \
+	MarkDuplicates \
+	--INPUT $bam \
+	--METRICS_FILE ${sample.name}.bam.metrics \
+	--ASSUME_SORT_ORDER coordinate \
+	--CREATE_INDEX true \
+	--OUTPUT ${sample.name}.md.bam
 	"""
 }
 
 
 process CREATE_INTERVALS {
 	tag "CREATE_INTERVALS on $panelName using $task.cpus CPUs and $task.memory memory"
-    container 'pegi3s/bedtools:2.31.0'
+	container 'pegi3s/bedtools:2.31.0'
 	label "s_cpu"
 	label "xxs_mem"
 
@@ -152,7 +152,7 @@ process CREATE_INTERVALS {
 	script:
 
 	"""
-    bedtools merge -d 20000000 -i $panel.bedFile | awk -v FS="\t" -v OFS="\t" '{print \$1 ":" \$2+1 "-" \$3}' > intervals.temp
+	bedtools merge -d 20000000 -i $panel.bedFile | awk -v FS="\t" -v OFS="\t" '{print \$1 ":" \$2+1 "-" \$3}' > intervals.temp
 	while IFS= read -r line; do
 		echo "\$line" > "\$(echo "\$line" | sed 's/[:\\-]/_/g').intervals"
 	done < intervals.temp
@@ -161,7 +161,7 @@ process CREATE_INTERVALS {
 
 process BASE_RECALIBRATOR {
 	tag "BASE_RECALIBRATOR on $sample.name-${intervalBed.getSimpleName()} using $task.cpus CPUs and $task.memory memory"
-    container 'broadinstitute/gatk:4.2.3.0'
+	container 'broadinstitute/gatk:4.2.3.0'
 	label "s_cpu"
 	label "s_mem"
 
@@ -173,18 +173,18 @@ process BASE_RECALIBRATOR {
 
 	script:
 	"""
-    gatk --java-options -Xmx${task.memory.toMega()}m \
-        BaseRecalibrator \
-        -I ${bam} \
-        -O ${intervalBed.getSimpleName()}_${sample.name}.recal.table \
+	gatk --java-options -Xmx${task.memory.toMega()}m \
+	BaseRecalibrator \
+	-I ${bam} \
+	-O ${intervalBed.getSimpleName()}_${sample.name}.recal.table \
 		-L ${intervalBed} \
-        --tmp-dir . \
-        -R ${params.ref}.fasta \
+	--tmp-dir . \
+	-R ${params.ref}.fasta \
 		--known-sites ${params.gatkKnownSites}/hapmap_3.3.hg38.vcf.gz \
 		--known-sites ${params.gatkKnownSites}/1000G_phase1.snps.high_confidence.hg38.vcf.gz \
 		--known-sites ${params.gatkKnownSites}/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz \
 		--known-sites ${params.gatkKnownSites}/dbsnp_146.hg38.vcf.gz \
-        --verbosity INFO
+	--verbosity INFO
 	"""
 }
 
@@ -192,7 +192,7 @@ process BASE_RECALIBRATOR {
 process GATHER_BSQR {
 	tag "GATHER_BSQR on $sample.name using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/reCals/", mode:'copy'
-    container 'broadinstitute/gatk:4.2.3.0'
+	container 'broadinstitute/gatk:4.2.3.0'
 	label "s_cpu"
 	label "m_mem"
 
@@ -206,17 +206,17 @@ process GATHER_BSQR {
 	input = intervals.collect{"-I ${it}"}.join(' ')
 
 	"""
-    gatk --java-options -Xmx${task.memory.toMega()}m  \
-        GatherBQSRReports \
-        $input \
-        -O ${sample.name}.recal.table \
+	gatk --java-options -Xmx${task.memory.toMega()}m  \
+	GatherBQSRReports \
+	$input \
+	-O ${sample.name}.recal.table \
 	"""
 }
 
 process APPLY_BSQR {
 	tag "APPLY_BSQR on $sample.name-${intervalBed.getSimpleName()} using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/reCals/", mode:'copy'
-    container 'broadinstitute/gatk:4.2.3.0'
+	container 'broadinstitute/gatk:4.2.3.0'
 	label "s_cpu"
 	label "s_mem"
 
@@ -228,13 +228,13 @@ process APPLY_BSQR {
 
 	script:
 	"""
-    gatk --java-options -Xmx${task.memory.toMega()}m \
-        ApplyBQSR \
-        -R ${params.ref}.fasta \
-        --input ${bam} \
-        --output ${intervalBed.getSimpleName()}_${sample.name}.recal.bam \
+	gatk --java-options -Xmx${task.memory.toMega()}m \
+	ApplyBQSR \
+	-R ${params.ref}.fasta \
+	--input ${bam} \
+	--output ${intervalBed.getSimpleName()}_${sample.name}.recal.bam \
 		-L ${intervalBed} \
-        --bqsr-recal-file ${recal_table}
+	--bqsr-recal-file ${recal_table}
 	"""
 }
 
@@ -242,40 +242,40 @@ process APPLY_BSQR {
 process MERGE_BAMRECALLS {
 	tag "MERGE_BAMRECALLS on $sample.name using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/bams/", mode:'copy'
-    container 'broadinstitute/gatk:4.2.3.0'
+	container 'broadinstitute/gatk:4.2.3.0'
 	label "m_cpu"
 	label "xxs_mem"
 
-    input:
+	input:
 	tuple val(sample), path(bams)
 
-    output:
+	output:
 	tuple val(sample), path("${sample.name}.recal.bam"), path("${sample.name}.recal.bam.bai")
 
-    script:
-    """
-    samtools merge --threads ${task.cpus} ${sample.name}.recal.bam ${bams}
-    samtools index ${sample.name}.recal.bam
-    """
+	script:
+	"""
+	samtools merge --threads ${task.cpus} ${sample.name}.recal.bam ${bams}
+	samtools index ${sample.name}.recal.bam
+	"""
 }
 
 process HAPLOTYPECALLER_GVCF {
 	tag "HAPLOTYPECALLER_GVCF on $sample.name-${intervalBed.getSimpleName()} using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/VCFs/", mode:'copy'
-    container 'broadinstitute/gatk:4.2.3.0'
+	container 'broadinstitute/gatk:4.2.3.0'
 	label "s_cpu"
 	label "m_mem"
 
-    input:
-    tuple val(panelName), val(sample), path(bam), path(bai), path(intervalBed)
+	input:
+	tuple val(panelName), val(sample), path(bam), path(bai), path(intervalBed)
 
-    output:
-    tuple val(panelName), val("${intervalBed.getSimpleName()}"), path("$sample.name-${intervalBed.getSimpleName()}.g.vcf.gz"), path("$sample.name-${intervalBed.getSimpleName()}.g.vcf.gz.tbi")
+	output:
+	tuple val(panelName), val("${intervalBed.getSimpleName()}"), path("$sample.name-${intervalBed.getSimpleName()}.g.vcf.gz"), path("$sample.name-${intervalBed.getSimpleName()}.g.vcf.gz.tbi")
 	path "*"
 
-    script:
-    """
-    gatk --java-options "-Xmx${task.memory.toMega()}m -XX:ParallelGCThreads=${task.cpus}" \
+	script:
+	"""
+	gatk --java-options "-Xmx${task.memory.toMega()}m -XX:ParallelGCThreads=${task.cpus}" \
 		HaplotypeCaller  \
 		-R ${params.ref}.fasta \
 		-I $bam \
@@ -283,56 +283,221 @@ process HAPLOTYPECALLER_GVCF {
 		-O $sample.name-${intervalBed.getSimpleName()}.g.vcf.gz \
 		--create-output-variant-index \
 		-ERC GVCF
-    """    
+	"""	
 }
 
 process DB_IMPORT {
+	// build DB per panel type (its respective samples) and interval
 	tag "DB_IMPORT on $panelName:${intervalBed.getSimpleName()} using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/DBs/", mode:'copy'
-    container 'broadinstitute/gatk:4.2.3.0'
+	container 'broadinstitute/gatk:4.2.3.0'
 	label "s_cpu"
 	label "s_mem"
 
-    input:
+	input:
 	tuple val(panelName), val(intervalName), path(intervalBed), path(vcfsSamples), path(tbiSamples)
 
-    output:
+	output:
 	tuple val(panelName), val(intervalName), path("${panelName}-${intervalBed.getSimpleName()}.db")
 
-    script:
+	script:
 	input = vcfsSamples.collect{"-V ${it}"}.join(' ')
 	"""
-    gatk --java-options "-Xmx${task.memory.toMega()}m -XX:ParallelGCThreads=${task.cpus}" \
-        GenomicsDBImport \
+	gatk --java-options "-Xmx${task.memory.toMega()}m -XX:ParallelGCThreads=${task.cpus}" \
+	GenomicsDBImport \
 		$input \
-        --genomicsdb-workspace-path ${panelName}-${intervalBed.getSimpleName()}.db \
+	--genomicsdb-workspace-path ${panelName}-${intervalBed.getSimpleName()}.db \
 		-L $intervalBed
-	ls -al
 	"""
 }
 
 process GENOTYPE_GVCFs_INTERVALS {
 	tag "GENOTYPE_GVCFs_INTERVALS on $panelName: $intervalName using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/genotyped/", mode:'copy'
-    container 'broadinstitute/gatk:4.2.3.0'
+	container 'broadinstitute/gatk:4.2.3.0'
 	label "s_cpu"
 	label "m_mem"
 	
 	input:
 	tuple val(panelName), val(intervalName), path(db)
 
-    output:
+	output:
 	// tuple val(panelName), path("${panelName}_${intervalName}.vcf.gz")
-	tuple val(panelName), val(intervalName), path("${panelName}_${intervalName}.vcf.gz")
+	tuple val(panelName), val(intervalName), path("${panelName}_${intervalName}.vcf.gz"), path("${panelName}_${intervalName}.vcf.gz.tbi")
 
 
-    script:
+	script:
 	"""
 	gatk --java-options "-Xmx${task.memory.toMega()}m -XX:ParallelGCThreads=${task.cpus}" \
 		GenotypeGVCFs \
 		-R ${params.ref}.fasta \
 		-V gendb://${db} \
 		-O ${panelName}_${intervalName}.vcf.gz
+	"""
+}
+
+
+
+process FILTER_PANEL_SNPs {
+	// this is applicable for smaller panels
+	tag "FILTER_PANEL_SNPs on $panelName: $intervalName using $task.cpus CPUs and $task.memory memory"
+	publishDir "${params.outDirectory}/FilteredSNPs/", mode:'copy'
+	container 'broadinstitute/gatk:4.2.3.0'
+	label "s_cpu"
+	label "s_mem"
+	
+	input:
+	tuple val(panelName), val(intervalName), path(genotypedVcfInterval), path(tbi)
+
+	output:
+	tuple val(panelName), val(intervalName), path("${intervalName}_${panelName}.filtered.SNPs.vcf.gz")
+
+	script:
+	"""
+	gatk --java-options -Xmx${task.memory.toMega()}m \
+		SelectVariants \
+		-V ${genotypedVcfInterval} \
+		-select-type SNP \
+		-O snps.vcf.gz
+
+	gatk --java-options -Xmx${task.memory.toMega()}m \
+		VariantFiltration \
+		-V snps.vcf.gz \
+		-filter "QD < 2.0" --filter-name "QD2" \
+		-filter "QUAL < 30.0" --filter-name "QUAL30" \
+		-filter "SOR > 3.0" --filter-name "SOR3" \
+		-filter "FS > 60.0" --filter-name "FS60" \
+		-filter "MQ < 40.0" --filter-name "MQ40" \
+		-filter "MQRankSum < -12.5" --filter-name "MQRankSum-12.5" \
+		-filter "ReadPosRankSum < -8.0" --filter-name "ReadPosRankSum-8" \
+		-O ${intervalName}_${panelName}.filtered.SNPs.vcf.gz
+	"""
+}
+
+process FILTER_PANEL_INDELs {
+	// this is applicable for smaller panels
+	tag "FILTER_PANEL_INDELs on $panelName: $intervalName using $task.cpus CPUs and $task.memory memory"
+	publishDir "${params.outDirectory}/FilteredINDELs/", mode:'copy'
+	container 'broadinstitute/gatk:4.2.3.0'
+	label "s_cpu"
+	label "s_mem"
+	
+	input:
+	tuple val(panelName), val(intervalName), path(genotypedVcfInterval), path(tbi)
+
+	output:
+	tuple val(panelName),val(intervalName), path("${intervalName}_${panelName}.filtered.INDELs.vcf.gz")
+
+	script:
+	"""
+	gatk --java-options -Xmx${task.memory.toMega()}m \
+		SelectVariants \
+		-V ${genotypedVcfInterval} \
+		-select-type INDEL \
+		-O indels.vcf.gz
+
+	gatk --java-options -Xmx${task.memory.toMega()}m \
+		VariantFiltration \
+		-V indels.vcf.gz \
+		-filter "QD < 2.0" --filter-name "QD2" \
+		-filter "QUAL < 30.0" --filter-name "QUAL30" \
+		-filter "FS > 200.0" --filter-name "FS200" \
+		-filter "ReadPosRankSum < -20.0" --filter-name "ReadPosRankSum-20" \
+		-O ${intervalName}_${panelName}.filtered.INDELs.vcf.gz
+	"""
+}
+
+
+process MERGE_FILTERED {
+	// this is applicable for smaller panels
+	tag "MERGE_FILTERED on $panelName: $intervalName using $task.cpus CPUs and $task.memory memory"
+	publishDir "${params.outDirectory}/FilteredMerged/", mode:'copy'
+	container 'broadinstitute/gatk:4.2.3.0'
+	label "s_cpu"
+	label "s_mem"
+	
+	input:
+	tuple val(panelName), val(intervalName), path(filteredSNPvcf), path(filteredINDELSvcf)
+
+	output:
+	tuple val(panelName), val(intervalName), path("${intervalName}_${panelName}.filtered.merged.vcf.gz")
+
+	script:
+	"""
+	gatk --java-options -Xmx${task.memory.toMega()}m \
+		MergeVcfs \
+		--INPUT ${filteredSNPvcf} \
+		--INPUT ${filteredINDELSvcf} \
+		--OUTPUT filtered.vcf.gz
+
+	gatk --java-options -Xmx${task.memory.toMega()}m \
+		SelectVariants \
+		-R ${params.ref}.fasta \
+		-V filtered.vcf.gz \
+		--exclude-filtered \
+		-O ${intervalName}_${panelName}.filtered.merged.vcf.gz
+	"""
+}
+
+process VAR_RECALL {
+	// NOT APLICABLE FOR LOW NUMBER OF SAMPLES
+	// https://gatk.broadinstitute.org/hc/en-us/articles/360036510892-VariantRecalibrator
+	tag "VAR_RECALL on $panelName: $intervalName using $task.cpus CPUs and $task.memory memory"
+	container 'broadinstitute/gatk:4.2.3.0'
+	label "s_cpu"
+	label "m_mem"
+
+	input:
+	tuple val(panelName), val(intervalName), path(genotypedVcfInterval), path(tbi)
+
+	output:
+	tuple val(panelName), val(intervalName), path("${intervalName}_${panelName}*")
+
+	script:
+	"""
+	gatk --java-options "-Xmx${task.memory.toMega()}m -XX:ParallelGCThreads=${task.cpus}" \
+		VariantRecalibrator \
+		-R ${params.ref}.fasta \
+		-V ${genotypedVcfInterval} \
+		--resource:hapmap,known=false,training=true,truth=true,prior=15.0 ${params.gatkKnownSites}/hapmap_3.3.hg38.vcf.gz \
+		--resource:omni,known=false,training=true,truth=false,prior=12.0 ${params.gatkKnownSites}/1000G_omni2.5.hg38.vcf.gz \
+		--resource:1000G,known=false,training=true,truth=false,prior=10.0 ${params.gatkKnownSites}/1000G_phase1.snps.high_confidence.hg38.vcf.gz \
+		--resource:dbsnp,known=true,training=false,truth=false,prior=2.0 ${params.gatkKnownSites}/dbsnp_146.hg38.vcf.gz  \
+		-an QD -an ReadPosRankSum -an FS -an SOR -an DP \
+		-mode SNP \
+		--max-gaussians 1 \
+		-O ${intervalName}_${panelName}.recal \
+		--tranches-file ${intervalName}_${panelName}.tranches \
+		--rscript-file ${intervalName}_${panelName}.plots.R
+	"""
+}
+
+
+process APPLY_VQSR {
+	// NOT APLICABLE FOR LOW NUMBER OF SAMPLES
+	// https://gatk.broadinstitute.org/hc/en-us/articles/360037056912-ApplyVQSR
+	tag "APPLY_VQSR on $panelName: $intervalName using $task.cpus CPUs and $task.memory memory"
+	container 'broadinstitute/gatk:4.2.3.0'
+	label "s_cpu"
+	label "m_mem"
+
+	input:
+	tuple val(panelName), val(intervalName), path(var_recall_files)
+
+	output:
+	tuple val(panelName), val(intervalName), path("${intervalName}_${panelName}*")
+
+	script:
+	"""
+	gatk --java-options "-Xmx${task.memory.toMega()}m -XX:ParallelGCThreads=${task.cpus}" \
+		ApplyVQSR \
+		-R ${params.ref}.fasta \
+		-V ${intervalName}_${panelName}.vcf.gz \
+		-O ${intervalName}_${panelName}.recalled.vcf.gz  \
+		--ts_filter_level 99.0 \
+		--tranches-file ${intervalName}_${panelName}.tranches \
+		--recal-file ${intervalName}_${panelName}.recal \
+		-mode SNP
 	"""
 }
 
@@ -362,19 +527,20 @@ process ANNOTATE_VEP {
 }
 
 process GATHER_VCF_PANELS {
+	// collapse files from individual intervals into one file per panel
 	tag "GATHER_VCF_PANELS on $panelName using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/mergedVCFs/", mode:'copy'
-    container 'broadinstitute/gatk:4.2.3.0'
+	container 'broadinstitute/gatk:4.2.3.0'
 	label "s_cpu"
 	label "m_mem"
 	
 	input:
 	tuple val(panelName), val(intervalNames), path(vcfsPanelIntervals)
 
-    output:
+	output:
 	tuple val(panelName), path("${panelName}.vcf.gz"), path("${panelName}.vcf.gz.tbi")
 
-    script:
+	script:
 	input = vcfsPanelIntervals.collect{"-I ${it}"}.join(' ')
 	"""
 	gatk --java-options "-Xmx${task.memory.toMega()}m" \
@@ -384,8 +550,8 @@ process GATHER_VCF_PANELS {
 		-O ${panelName}.vcf.gz
 	
 	gatk --java-options -Xmx${task.memory.toMega()}m \
-        IndexFeatureFile \
-        -I "${panelName}.vcf.gz"
+	IndexFeatureFile \
+	-I "${panelName}.vcf.gz"
 	"""
 }
 
@@ -393,17 +559,17 @@ process GATHER_VCF_PANELS {
 process VCFs_PER_SAMPLE {
 	tag "VCFs_PER_SAMPLE on $sample.name using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/VCFsPerSample/", mode:'copy'
-    container 'broadinstitute/gatk:4.2.3.0'
+	container 'broadinstitute/gatk:4.2.3.0'
 	label "s_cpu"
 	label "s_mem"
 	
 	input:
 	tuple val(sample), path(mergedVcf), path(tbi)
 
-    output:
+	output:
 	tuple val(sample), path("${sample.name}.vcf.gz")
 
-    script:
+	script:
 	"""
 	gatk --java-options -Xmx${task.memory.toMega()}m \
 		SelectVariants \
@@ -414,20 +580,40 @@ process VCFs_PER_SAMPLE {
 	"""
 }
 
+
+process FILTER_SAMPLE {
+	tag "FILTER_SAMPLE_INDELs on $sample.name using $task.cpus CPUs and $task.memory memory"
+	publishDir "${params.outDirectory}/VCFsPerSample/", mode:'copy'
+	container 'staphb/bcftools:1.20'
+	label "s_cpu"
+	label "s_mem"
+	
+	input:
+	tuple val(sample), path(vcf)
+
+	output:
+	tuple val(sample), path("${sample.name}.filtered.vcf.gz")
+
+	script:
+	"""
+	bcftools view -i 'AC>0 && GQ>=20' $vcf -o ${sample.name}.filtered.vcf.gz
+	"""
+}
+
 process BEAGLE_IMPUTATION {
 	tag "BEAGLE_IMPUTATION on $panelName:$intervalName using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/phased/", mode:'copy'
-    container 'quay.io/biocontainers/beagle:5.4_22Jul22.46e--hdfd78af_0'
+	container 'quay.io/biocontainers/beagle:5.4_22Jul22.46e--hdfd78af_0'
 	label "s_cpu"
 	label "m_mem"
 	
 	input:
 	tuple val(panelName), val(intervalName), path(vcfInterval)
 
-    output:
+	output:
 	tuple val(panelName), path("*")
 
-    script:
+	script:
 	splited = intervalName.split("_")
 	chrom = splited[0]
 	"""
@@ -652,7 +838,7 @@ panelsUnique = SamplesWithPanels.map{[it.panel,it]}.groupTuple().map({[it[0],it[
 intervals = CREATE_INTERVALS(panelsUnique)
 // intervals.map({it -> it[0].map({itNested -> return[it[1], itnNested]})}).view()
 NamedIntervals = intervals.flatMap { tuple ->
-    tuple[1].collect { val -> [tuple[0], val] } //explode individual intervals to get [panelName, interval.list]
+	tuple[1].collect { val -> [tuple[0], val] } //explode individual intervals to get [panelName, interval.list]
 }
 
 rawfastq = COLLECT_BASECALLED(SamplesWithPanels)
@@ -664,7 +850,7 @@ SamplesIntervals = dupBams
 	.combine(NamedIntervals, by: 0)
 
 RecalTables = BASE_RECALIBRATOR(SamplesIntervals)
-    .groupTuple() //[sample, [inverval1, ...invervalX]]
+	.groupTuple() //[sample, [inverval1, ...invervalX]]
 GatheredTables = GATHER_BSQR(RecalTables)
 BSQRTablesBams = GatheredTables.join(dupBams)
 	.map({[it[0].panel, it[0], it[1], it[2], it[3]]})
@@ -684,30 +870,40 @@ PerPanelRegionBedVcfs = NamedIntervals
 DBsPanelRegion = DB_IMPORT(PerPanelRegionBedVcfs)
 
 GenotypedPanelRegion = GENOTYPE_GVCFs_INTERVALS(DBsPanelRegion)
-IntervalVCFsAnnotated = ANNOTATE_VEP(GenotypedPanelRegion)
+//VariantRecalibrationFiles = VAR_RECALL(GenotypedPanelRegion).view()
+//GenotypedToRecalibrate = GenotypedPanelRegion.join(VariantRecalibrationFiles,by:[0,1]).view()
+
+FilteredSNPs = FILTER_PANEL_SNPs(GenotypedPanelRegion)
+FilteredINDELs = FILTER_PANEL_INDELs(GenotypedPanelRegion)
+
+FilteredJoined = FilteredSNPs.join(FilteredINDELs, by:[0,1])
+MergedFiltered = MERGE_FILTERED(FilteredJoined)
+
+IntervalVCFsAnnotated = ANNOTATE_VEP(MergedFiltered)
 
 GenotypedPerPanel = GATHER_VCF_PANELS(IntervalVCFsAnnotated.groupTuple())
 
-	// BEAGLE_IMPUTATION(GenotypedPanelRegion.first())
+// // 	// BEAGLE_IMPUTATION(GenotypedPanelRegion.first())
 SamplesMergedVCF = SamplesWithPanels //get [sample, panel.vcf.gz, panel.vcf.gz.tbi]
 	.map{[it.panel,it]}
 	.combine(GenotypedPerPanel)
 	.map{[it[1], it[3], it[4]]}.view()
 GenotypedPerSample = VCFs_PER_SAMPLE(SamplesMergedVCF)
+FILTER_SAMPLE(GenotypedPerSample)
 
 }
 
 
 
 	def getPanel(name) {
-        if (name[0] == 'd') {
-            return "derma"
-        } else if (name[0] == 'a') {
-            return "atero"
-        } else {
-            return "Default"
-        }
-    }
+	if (name[0] == 'd') {
+	return "derma"
+	} else if (name[0] == 'a') {
+	return "atero"
+	} else {
+	return "Default"
+	}
+	}
 
 
 
