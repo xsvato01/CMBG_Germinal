@@ -2,8 +2,8 @@
 process HaplotypeCallerGVCF {
 	tag "HaplotypeCallerGVCF on $sample.name-${intervalBed.getSimpleName()} using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/VCFs/", mode:'copy'
-	container 'broadinstitute/gatk:4.2.3.0'
-	label "m_cpu"
+	label "gatk"
+	label "s_cpu"
 	label "m_mem"
 
 	input:
@@ -21,6 +21,12 @@ process HaplotypeCallerGVCF {
 		-L ${intervalBed} \
 		-O $sample.name-${intervalBed.getSimpleName()}.g.vcf.gz \
 		--create-output-variant-index \
+		-A OrientationBiasReadCounts \
+		-A StrandBiasBySample \
+		-A DepthPerAlleleBySample \
+		-A Coverage \
+		-A BaseQuality \
+		-A AlleleFraction \
 		-ERC GVCF
 	"""	
 }
@@ -29,7 +35,7 @@ process BuildDB {
 	// build DB per panel type (its respective samples) and interval
 	tag "BuildDB on $panelName:${intervalBed.getSimpleName()} using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/DBs/", mode:'copy'
-	container 'broadinstitute/gatk:4.2.3.0'
+	label "gatk"
 	label "s_cpu"
 	label "s_mem"
 
@@ -53,7 +59,7 @@ process BuildDB {
 process GenotypeGVCFsIntervals {
 	tag "GenotypeGVCFsIntervals on $panelName: $intervalName using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/genotyped/", mode:'copy'
-	container 'broadinstitute/gatk:4.2.3.0'
+	label "gatk"
 	label "s_cpu"
 	label "m_mem"
 	
@@ -70,6 +76,7 @@ process GenotypeGVCFsIntervals {
 	GenotypeGVCFs \
 		-R ${params.ref}.fasta \
 		-V gendb://${db} \
+		--keep-combined-raw-annotations \
 		-O ${panelName}_${intervalName}.vcf.gz
 	"""
 }

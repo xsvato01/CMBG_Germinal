@@ -3,7 +3,7 @@ process GatherVCFPanels {
 	// collapse files from individual intervals into one file per panel
 	tag "GatherVCFPanels on $panelName using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/mergedVCFs/", mode:'copy'
-	container 'broadinstitute/gatk:4.2.3.0'
+	label "gatk"
 	label "s_cpu"
 	label "m_mem"
 	
@@ -27,7 +27,7 @@ process GatherVCFPanels {
 process FilterVCFPanels {
 	// filter variants for bedfile for respective panel
     // applicable for virtual panels mostly
-	tag "FilterVCFPanels on $panelName using $task.cpus CPUs and $task.memory memory"
+	tag "FilterVCFPanels on $panel.panelName using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/mergedVCFs/", mode:'copy'
 	container 'registry.gitlab.ics.muni.cz:443/450402/btk_k8s:16'
 	label "s_cpu"
@@ -37,10 +37,10 @@ process FilterVCFPanels {
 	tuple val(panel), path(mergedVcf)
 
 	output:
-	tuple val(panel), path("${panelName}.filtered.vcf.gz")
+	tuple val(panel), path("${panel.panelName}.filtered.vcf.gz")
 
 	script:
 	"""
-	bedtools intersect -header -a $mergedVcf -b ${panel.bedFile} | bgzip > ${panelName}.filtered.vcf.gz
+	bedtools intersect -header -a $mergedVcf -b ${panel.bedFile} | bgzip > ${panel.panelName}.filtered.vcf.gz
 	"""
 }

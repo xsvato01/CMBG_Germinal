@@ -2,7 +2,7 @@ include { CreateIntervals } from "${params.projectDirectory}/modules/Preprocessi
 include { VariantDetection } from "${params.projectDirectory}/subworkflows/VariantDetection"
 
 workflow {
-	samples = channel.fromList(params.samples).view()
+	samples = channel.fromList(params.samples)
 	panels = channel.fromList(params.panels).map({ [it.panelName, it] })
 	samplesPanels = samples.map({ sample -> [getPanel(sample.name), sample] })
 	samplesWithPanels = samplesPanels
@@ -16,6 +16,12 @@ workflow {
 	intervals = CreateIntervals(panelsUnique)
 	namedIntervals = intervals
 		.flatMap { tuple -> tuple[1].collect { val -> [tuple[0], val] } }
+	
+	namedIntervals
+	.map { it-> it[1] }
+	.view()
+	.count()
+    .view{"____________Intervals count_____________: $it"}
 
 	VariantDetection(panels, samplesWithPanels, namedIntervals)
 }

@@ -2,7 +2,7 @@
 process VCFsPerSample {
 	tag "VCFsPerSample on $sample.name using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/VCFsPerSample/", mode:'copy'
-	container 'broadinstitute/gatk:4.2.3.0'
+	label "gatk"
 	label "s_cpu"
 	label "m_mem"
 	
@@ -43,7 +43,7 @@ process FilterSampleVCFs {
 
 	script:
 	"""
-	bcftools view -i 'AC>0 && GQ>=20' $vcf -o ${sample.name}.filtered.vcf.gz
+	bcftools view -i 'AC>0 && GQ>=20 && FILTER="PASS"' $vcf -o ${sample.name}.filtered.vcf.gz
 	"""
 }
 

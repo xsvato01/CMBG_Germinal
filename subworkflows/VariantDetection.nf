@@ -4,10 +4,20 @@ include {
     MarkDuplicates } from "${params.projectDirectory}/modules/Preprocessing.nf"
 
 include {
-    BaseRecalibration;
+    BQSR;
     GatherRecalibrationTables;
-    ApplyRecalibration;
-    MergeRecalibratedBams } from "${params.projectDirectory}/modules/Recalibration.nf"
+    ApplyBQSR;
+    MergeRecalibratedBams;
+	GatherGenotypedVCFPanels } from "${params.projectDirectory}/modules/BQSR.nf"
+
+include {
+	MakeSitesOnlyVcfs;
+	VQSR_SNPs;
+	VQSR_INDELs;
+	ApplySNPsVQSR;
+	ApplyINDELsVQSR;
+	MergeINDELsSNPsVQSR;
+	VcfToIntervals } from "${params.projectDirectory}/modules/VQSR.nf"
 
 include {
     HaplotypeCallerGVCF;
@@ -42,23 +52,31 @@ workflow VariantDetection {
     rawFastq = CollectBasecalled(samplesWithPanels)
     sortedBams = AlignBams(rawFastq)
     (dupBams, markTable) = MarkDuplicates(sortedBams)
-    samplesIntervals = dupBams
-        .map({ [it[0].panel, it[0], it[1], it[2]] })
-        .combine(namedIntervals, by: 0)
 
-    recalTables = BaseRecalibration(samplesIntervals).groupTuple()
-	gatheredTables = GatherRecalibrationTables(recalTables)
-	bsqrTablesBams = gatheredTables
-        .join(dupBams)
-        .map({ [it[0].panel, it[0], it[1], it[2], it[3]] })
-        .combine(namedIntervals, by: 0)
+	if (params.skipBQSR) {
+		finalBams = dupBams
+			.map({ [it[0].panelName, it[0], it[1], it[2]] })
+			.combine(namedIntervals, by: 0)
+		}
+		else {
+		samplesIntervals = dupBams
+			.map({ [it[0].panelName, it[0], it[1], it[2]] })
+			.combine(namedIntervals, by: 0)
 
-    recalBamsToMerge = ApplyRecalibration(bsqrTablesBams).groupTuple()
-	mergedRecalBams = MergeRecalibratedBams(recalBamsToMerge)
-        .map({ [it[0].panel, it[0], it[1], it[2]] })
-        .combine(namedIntervals, by: 0)
+		recalTables = BQSR(samplesIntervals).groupTuple()
+		gatheredTables = GatherRecalibrationTables(recalTables)
+		bsqrTablesBams = gatheredTables
+			.join(dupBams)
+			.map({ [it[0].panelName, it[0], it[1], it[2], it[3]] })
+			.combine(namedIntervals, by: 0)
 
-    rawVcfs = HaplotypeCallerGVCF(mergedRecalBams)
+		recalBamsToMerge = ApplyBQSR(bsqrTablesBams).groupTuple()
+		finalBams = MergeRecalibratedBams(recalBamsToMerge)
+			.map({ [it[0].panelName, it[0], it[1], it[2]] })
+			.combine(namedIntervals, by: 0)
+		}
+
+    rawVcfs = HaplotypeCallerGVCF(finalBams)
 	perPanelRegionVcfs = rawVcfs.groupTuple(by: [0, 1])
 
 	perPanelRegionBedVcfs = namedIntervals
@@ -68,12 +86,30 @@ workflow VariantDetection {
     dbsPanelRegion = BuildDB(perPanelRegionBedVcfs)
 	genotypedPanelRegion = GenotypeGVCFsIntervals(dbsPanelRegion)
 
-	filteredSNPs = FilterPanelSNPs(genotypedPanelRegion)
-	filteredINDELs = FilterPanelIndels(genotypedPanelRegion)
-    filteredJoined = filteredSNPs.join(filteredINDELs, by: [0, 1])
-	mergedFiltered = MergeFilteredVariants(filteredJoined)
+	if (params.skipVQSR) {
+        // use hard filtering
+		filteredSNPs = FilterPanelSNPs(genotypedPanelRegion)
+		filteredINDELs = FilterPanelIndels(genotypedPanelRegion)
+		filteredJoined = filteredSNPs.join(filteredINDELs, by: [0, 1])
+		vcfToAnnotate = MergeFilteredVariants(filteredJoined)
 
-    intervalVCFsAnnotated = AnnotateVariantsVEP(mergedFiltered)
+	} else {	
+        gatheredPanelVcf = GatherGenotypedVCFPanels(genotypedPanelRegion.groupTuple())
+        // sitesOnlyPanelVcf = MakeSitesOnlyVcfs(gatheredPanelVcf)
+        vqsrSNPs = gatheredPanelVcf.join(VQSR_SNPs(gatheredPanelVcf))
+        vqsrINDELs = gatheredPanelVcf.join(VQSR_INDELs(gatheredPanelVcf))
+
+        recalibratedSNPs = ApplySNPsVQSR(vqsrSNPs)//.view()
+        recalibratedINDELs = ApplyINDELsVQSR(vqsrINDELs)
+
+        recalibratedVariants = MergeINDELsSNPsVQSR(recalibratedSNPs.join(recalibratedINDELs))
+
+        vcfToAnnotate = VcfToIntervals(recalibratedVariants
+            .combine(namedIntervals, by: 0))
+	}
+	
+
+    intervalVCFsAnnotated = AnnotateVariantsVEP(vcfToAnnotate)
 	maneTranscriptsRegion = FilterVEPTranscripts(intervalVCFsAnnotated)
 
     genotypedPerPanel = GatherVCFPanels(maneTranscriptsRegion.groupTuple())

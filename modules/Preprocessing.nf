@@ -64,8 +64,8 @@ process AlignBams {
 process MarkDuplicates {
 	tag "Mark duplicates on $sample.name using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/markDups/", mode:'copy'
-	container 'broadinstitute/gatk:4.2.3.0'
-	label "l_cpu"
+	label "gatk"
+	label "m_cpu"
 	label "l_mem"
 
 	input:

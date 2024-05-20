@@ -3,7 +3,7 @@ process FilterPanelSNPs {
 	// this is applicable for smaller panels
 	tag "FilterPanelSNPs on $panelName: $intervalName using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/FilteredSNPs/", mode:'copy'
-	container 'broadinstitute/gatk:4.2.3.0'
+	label "gatk"
 	label "s_cpu"
 	label "s_mem"
 	
@@ -39,7 +39,7 @@ process FilterPanelIndels {
 	// this is applicable for smaller panels
 	tag "FilterPanelIndels on $panelName: $intervalName using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/FilteredINDELs/", mode:'copy'
-	container 'broadinstitute/gatk:4.2.3.0'
+	label "gatk"
 	label "s_cpu"
 	label "s_mem"
 	
@@ -73,7 +73,7 @@ process MergeFilteredVariants {
 	// this is applicable for smaller panels
 	tag "MergeFilteredVariants on $panelName: $intervalName using $task.cpus CPUs and $task.memory memory"
 	publishDir "${params.outDirectory}/FilteredMerged/", mode:'copy'
-	container 'broadinstitute/gatk:4.2.3.0'
+	label "gatk"
 	label "s_cpu"
 	label "s_mem"
 	

@@ -35,7 +35,7 @@ process FilterVEPTranscripts {
 	container "ensemblorg/ensembl-vep:release_108.0"
 	publishDir "${params.outDirectory}/Annotate/", mode:'copy'
 	label "s_cpu"
-	label "l_mem"
+	label "xxs_mem"
 
 	input:
 	tuple val(panelName), val(intervalName), path(vcfRegion)
