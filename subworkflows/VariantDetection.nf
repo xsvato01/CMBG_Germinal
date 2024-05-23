@@ -1,14 +1,9 @@
 include {
-    CollectBasecalled;
-    AlignBams;
-    MarkDuplicates } from "${params.projectDirectory}/modules/Preprocessing.nf"
-
-include {
     BQSR;
     GatherRecalibrationTables;
     ApplyBQSR;
     MergeRecalibratedBams;
-	GatherGenotypedVCFPanels } from "${params.projectDirectory}/modules/BQSR.nf"
+	GatherGenotypedVCFPanels } from "${params.projectDirectory}/modules/BQSR"
 
 include {
 	MakeSitesOnlyVcfs;
@@ -17,41 +12,40 @@ include {
 	ApplySNPsVQSR;
 	ApplyINDELsVQSR;
 	MergeINDELsSNPsVQSR;
-	VcfToIntervals } from "${params.projectDirectory}/modules/VQSR.nf"
+	VcfToIntervals } from "${params.projectDirectory}/modules/VQSR"
 
 include {
     HaplotypeCallerGVCF;
     BuildDB;
-    GenotypeGVCFsIntervals } from "${params.projectDirectory}/modules/VariantCalling.nf"
+    GenotypeGVCFsIntervals } from "${params.projectDirectory}/modules/VariantCalling"
 
 include {
     FilterPanelSNPs;
     FilterPanelIndels;
-    MergeFilteredVariants } from "${params.projectDirectory}/modules/VariantFiltering.nf"
+    MergeFilteredVariants } from "${params.projectDirectory}/modules/VariantFiltering"
 
 include {
     AnnotateVariantsVEP;
-    FilterVEPTranscripts } from "${params.projectDirectory}/modules/Annotation.nf"
+    FilterVEPTranscripts } from "${params.projectDirectory}/modules/Annotation"
 
 include {
     GatherVCFPanels;
-    FilterVCFPanels } from "${params.projectDirectory}/modules/VariantPostProcessing.nf"
+    FilterVCFPanels } from "${params.projectDirectory}/modules/VariantPostProcessing"
 
 include {
     VCFsPerSample;
     FilterSampleVCFs;
-    CreateTextFile } from "${params.projectDirectory}/modules/SampleProcessing.nf"
+    CreateTextFile } from "${params.projectDirectory}/modules/SampleProcessing"
     
 workflow VariantDetection {
     take:
+    dupBams
     panels
     samplesWithPanels
     namedIntervals
 
 	main:
-    rawFastq = CollectBasecalled(samplesWithPanels)
-    sortedBams = AlignBams(rawFastq)
-    (dupBams, markTable) = MarkDuplicates(sortedBams)
+    
 
 	if (params.skipBQSR) {
 		finalBams = dupBams
@@ -127,4 +121,6 @@ workflow VariantDetection {
 	filteredSampleVCFs = FilterSampleVCFs(vcfPerSample)
 	CreateTextFile(filteredSampleVCFs)
 
+    emit:
+	vcfPerSample
 }

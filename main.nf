@@ -1,5 +1,11 @@
-include { CreateIntervals } from "${params.projectDirectory}/modules/Preprocessing.nf"
+include { CreateIntervals } from "${params.projectDirectory}/modules/Preprocessing"
+include {
+    CollectBasecalled;
+    AlignBams;
+    MarkDuplicates } from "${params.projectDirectory}/modules/Preprocessing"
 include { VariantDetection } from "${params.projectDirectory}/subworkflows/VariantDetection"
+include { QualityControl } from "${params.projectDirectory}/subworkflows/QualityControl"
+
 
 workflow {
 	samples = channel.fromList(params.samples)
@@ -23,17 +29,25 @@ workflow {
 	.count()
     .view{"____________Intervals count_____________: $it"}
 
-	VariantDetection(panels, samplesWithPanels, namedIntervals)
+	rawFastq = CollectBasecalled(samplesWithPanels)
+    sortedBams = AlignBams(rawFastq)
+    (dupBams, dupMetrics) = MarkDuplicates(sortedBams)
+
+	// VariantDetection(dupBams, panels, samplesWithPanels, namedIntervals)
+
+	QualityControl(rawFastq, dupBams, dupMetrics)
+
+	// VariantDetection(panels, samplesWithPanels, namedIntervals)
 }
 
 def getPanel(name) {
-  if (name[0] == 'd') {
-    return "derma"
-  } else if (name[0] == 'a') {
-    return "atero"
-  } else if (name[0] == 'n') {
-    return "neuro"
-  } else {
-    return "Default"
-  }
+	if (name[0] == 'd') {
+		return "derma"
+	} else if (name[0] == 'a') {
+		return "atero"
+	} else if (name[0] == 'n') {
+		return "neuro"
+	} else {
+		return "Default"
+	}
 }

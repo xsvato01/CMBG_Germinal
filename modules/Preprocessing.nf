@@ -73,7 +73,8 @@ process MarkDuplicates {
 
 	output:
 	tuple val(sample), path("${sample.name}.md.bam"), path("${sample.name}.md.bai")
-	path "${sample.name}.bam.metrics"
+	tuple val(sample), path("${sample.name}.bam.metrics")
+
 
 	script:
 	"""
