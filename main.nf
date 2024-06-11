@@ -37,7 +37,7 @@ workflow {
 
 	QualityControl(rawFastq, dupBams, dupMetrics)
 
-	// VariantDetection(panels, samplesWithPanels, namedIntervals)
+	VariantDetection(dupBams, panels, samplesWithPanels, namedIntervals)
 }
 
 def getPanel(name) {
@@ -47,7 +47,9 @@ def getPanel(name) {
 		return "atero"
 	} else if (name[0] == 'n') {
 		return "neuro"
+	} else if (name[0] == 'x') {
+		return "exom"
 	} else {
-		return "Default"
+		return "wgs"
 	}
 }

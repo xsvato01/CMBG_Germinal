@@ -21,10 +21,11 @@ process FastQC {
 
 process BamQC {
 	tag "BamQC on $sample.name using $task.cpus CPUs and $task.memory memory"
-    // container 'registry.gitlab.ics.muni.cz:443/450402/btk_k8s:16'
-
 	container 'quay.io/biocontainers/mulled-v2-b0664646864bfdb46c5343b1b2b93fc05adb4b77:39a005770a3e30fb6aa3bf424b57ddf52bae7ece-0'	
-	
+	// errorStrategy 'retry'
+    label "s_cpu"
+	label "m_mem"
+    
 	input:
 	tuple val(sample), path(bam), path(bai)
 
